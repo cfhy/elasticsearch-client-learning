@@ -1,9 +1,13 @@
 import org.apache.http.HttpHost;
 import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.sniff.ElasticsearchHostsSniffer;
+import org.elasticsearch.client.sniff.HostsSniffer;
 import org.elasticsearch.client.sniff.SniffOnFailureListener;
 import org.elasticsearch.client.sniff.Sniffer;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @description:sniffer
@@ -61,4 +65,48 @@ public class Example06 {
         sniffOnFailureListener.setSniffer(sniffer);
     }
 
+    /**
+     * 使用https
+     */
+    public static void func4(){
+        RestClient restClient = RestClient.builder(
+                new HttpHost("localhost", 9200, "http"))
+                .build();
+        HostsSniffer hostsSniffer = new ElasticsearchHostsSniffer(
+                restClient,
+                ElasticsearchHostsSniffer.DEFAULT_SNIFF_REQUEST_TIMEOUT,
+                ElasticsearchHostsSniffer.Scheme.HTTPS);
+        Sniffer sniffer = Sniffer.builder(restClient)
+                .setHostsSniffer(hostsSniffer).build();
+    }
+
+    /**
+     * 自定义sniffer 的timeout
+     */
+    public static void func5(){
+        RestClient restClient = RestClient.builder(
+                new HttpHost("localhost", 9200, "http"))
+                .build();
+        HostsSniffer hostsSniffer = new ElasticsearchHostsSniffer(
+                restClient,
+                TimeUnit.SECONDS.toMillis(5),
+                ElasticsearchHostsSniffer.Scheme.HTTP);
+        Sniffer sniffer = Sniffer.builder(restClient)
+                .setHostsSniffer(hostsSniffer).build();
+    }
+
+
+    public static void  func6(){
+        RestClient restClient = RestClient.builder(
+                new HttpHost("localhost", 9200, "http"))
+                .build();
+        HostsSniffer hostsSniffer = new HostsSniffer() {
+            @Override
+            public List<HttpHost> sniffHosts() throws IOException {
+                return null;//从外部获取主机
+            }
+        };
+        Sniffer sniffer = Sniffer.builder(restClient)
+                .setHostsSniffer(hostsSniffer).build();
+    }
 }
