@@ -1,110 +1,169 @@
 import org.apache.http.HttpHost;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.config.RequestConfig;
-import org.apache.http.impl.client.BasicCredentialsProvider;
-import org.apache.http.impl.nio.client.HttpAsyncClientBuilder;
-import org.apache.http.impl.nio.reactor.IOReactorConfig;
-import org.apache.http.ssl.SSLContextBuilder;
-import org.apache.http.ssl.SSLContexts;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.DocWriteRequest;
+import org.elasticsearch.action.DocWriteResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.index.IndexResponse;
+import org.elasticsearch.action.support.WriteRequest;
+import org.elasticsearch.action.support.replication.ReplicationResponse;
 import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestClientBuilder;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.TimeValue;
+import org.elasticsearch.common.xcontent.XContentBuilder;
+import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.VersionType;
+import org.elasticsearch.rest.RestStatus;
 
-import javax.net.ssl.SSLContext;
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
 
 /**
- * @description:常见的配置
+ * @description:Index API
  * @author: yyb
- * @create: 2018/4/3.
+ * @create: 2018/4/10.
  */
 public class Example05 {
+   public static void main(String[]args) throws IOException {
+       RestHighLevelClient client = new RestHighLevelClient(
+               RestClient.builder(
+                       new HttpHost("localhost", 9200, "http"),
+                       new HttpHost("localhost", 9201, "http")));
+       IndexRequest indexRequest1 = new IndexRequest(
+               "posts",//索引名称
+               "doc",//类型名称
+               "1");//文档ID
 
+       //==============================提供文档源========================================
+       //方式1：以字符串形式提供
+       String jsonString = "{" +
+               "\"user\":\"kimchy\"," +
+               "\"postDate\":\"2013-01-30\"," +
+               "\"message\":\"trying out Elasticsearch\"" +
+               "}";
+       indexRequest1.source(jsonString, XContentType.JSON);
 
-    /**
-     * 连接超时（默认为1秒）
-     * 套接字超时（默认为30秒）
-     * 最大重试超时时间（默认为30秒）
-     */
-    public static void timeout() {
-        RestClientBuilder builder = RestClient.builder(new HttpHost("localhost", 9200))
-                .setRequestConfigCallback(new RestClientBuilder.RequestConfigCallback() {
-                    //该方法接收一个RequestConfig.Builder对象，对该对象进行修改后然后返回。
-                    @Override
-                    public RequestConfig.Builder customizeRequestConfig(RequestConfig.Builder requestConfigBuilder) {
-                        return requestConfigBuilder.setConnectTimeout(5000) //连接超时（默认为1秒）
-                                .setSocketTimeout(60000);//套接字超时（默认为30秒）
-                    }
-                })
-                .setMaxRetryTimeoutMillis(60000);//调整最大重试超时时间（默认为30秒）
-    }
+       //方式2：以Map形式提供
+       Map<String, Object> jsonMap = new HashMap<>();
+       jsonMap.put("user", "kimchy");
+       jsonMap.put("postDate", new Date());
+       jsonMap.put("message", "trying out Elasticsearch");
+       //Map会自动转换为JSON格式的文档源
+       IndexRequest indexRequest2 = new IndexRequest("posts", "doc", "1")
+               .source(jsonMap);
 
-    /**
-     * 线程数
-     */
-    public static void threads() {
-        RestClientBuilder builder = RestClient.builder(new HttpHost("localhost", 9200))
-                .setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
-                    @Override
-                    public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
-                        return httpClientBuilder.setDefaultIOReactorConfig(
-                                IOReactorConfig.custom().setIoThreadCount(1).build());
-                    }
-                });
-    }
+       // 方式3：文档源以XContentBuilder对象的形式提供，Elasticsearch内部会帮我们生成JSON内容
 
-    /**
-     * 基本认证
-     */
-    public static void authentication() {
-        final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(AuthScope.ANY,
-                new UsernamePasswordCredentials("user", "password"));
+       XContentBuilder builder = XContentFactory.jsonBuilder();
+       builder.startObject();
+       {
+           builder.field("user", "kimchy");
+           builder.field("postDate", new Date());
+           builder.field("message", "trying out Elasticsearch");
+       }
+       builder.endObject();
+       IndexRequest indexRequest3 = new IndexRequest("posts", "doc", "1")
+               .source(builder);
 
-        RestClientBuilder builder = RestClient.builder(new HttpHost("localhost", 9200))
-                .setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
-                    // 该方法接收HttpAsyncClientBuilder的实例作为参数，对其修改后进行返回
-                    @Override
-                    public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
-                        httpClientBuilder.disableAuthCaching(); //禁用抢占式身份验证
-                        return httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider);//提供一个默认凭据
-                    }
-                });
-    }
+       //方式4：以Object key-pairs提供的文档源，它会被转换为JSON格式
+       IndexRequest indexRequest4 = new IndexRequest("posts", "doc", "1")
+        .source("user", "kimchy",
+               "postDate", new Date(),
+               "message", "trying out Elasticsearch");
 
+       //===============================可选参数start====================================
+       indexRequest1.routing("routing");//设置路由值
+       indexRequest1.parent("parent");//设置parent值
 
-    /**
-     * 加密通信
-     */
-    public static void encryptedCommunication(Path keyStorePath, String keyStorePass)
-            throws KeyStoreException,
-            NoSuchAlgorithmException,
-            KeyManagementException,
-            IOException,
-            CertificateException {
-        KeyStore truststore = KeyStore.getInstance("jks");
-        try (InputStream is = Files.newInputStream(keyStorePath)) {
-            truststore.load(is, keyStorePass.toCharArray());
-        }
-        SSLContextBuilder sslBuilder = SSLContexts.custom().loadTrustMaterial(truststore, null);
-        final SSLContext sslContext = sslBuilder.build();
-        RestClientBuilder builder = RestClient.builder(new HttpHost("localhost", 9200, "https"))
-                .setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
-                    @Override
-                    public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
-                        return httpClientBuilder.setSSLContext(sslContext);
-                    }
-                });
-    }
+       //设置超时：等待主分片变得可用的时间
+       indexRequest1.timeout(TimeValue.timeValueSeconds(1));//TimeValue方式
+       indexRequest1.timeout("1s");//字符串方式
+
+       //刷新策略
+       indexRequest1.setRefreshPolicy(WriteRequest.RefreshPolicy.WAIT_UNTIL);//WriteRequest.RefreshPolicy实例方式
+       indexRequest1.setRefreshPolicy("wait_for");//字符串方式
+
+       indexRequest1.version(2);//设置版本
+
+       indexRequest1.versionType(VersionType.EXTERNAL);//设置版本类型
+
+       //操作类型
+       indexRequest1.opType(DocWriteRequest.OpType.CREATE);//DocWriteRequest.OpType方式
+       indexRequest1.opType("create");//字符串方式, 可以是 create 或 update (默认)
+
+       //The name of the ingest pipeline to be executed before indexing the document
+       indexRequest1.setPipeline("pipeline");
+
+       //===============================执行====================================
+       //同步执行
+       IndexResponse indexResponse = client.index(indexRequest1);
+
+       //异步执行
+       //IndexResponse 的典型监听器如下所示：
+       //异步方法不会阻塞并立即返回。
+       ActionListener<IndexResponse> listener = new ActionListener<IndexResponse>() {
+           @Override
+           public void onResponse(IndexResponse indexResponse) {
+                //执行成功时调用。 Response以参数方式提供
+           }
+
+           @Override
+           public void onFailure(Exception e) {
+               //在失败的情况下调用。 引发的异常以参数方式提供
+           }
+       };
+       //异步执行索引请求需要将IndexRequest实例和ActionListener实例传递给异步方法：
+       client.indexAsync(indexRequest2, listener);
+
+       //Index Response
+       //返回的IndexResponse允许检索有关执行操作的信息，如下所示：
+       String index = indexResponse.getIndex();
+       String type = indexResponse.getType();
+       String id = indexResponse.getId();
+       long version = indexResponse.getVersion();
+       if (indexResponse.getResult() == DocWriteResponse.Result.CREATED) {
+            //处理（如果需要）第一次创建文档的情况
+       } else if (indexResponse.getResult() == DocWriteResponse.Result.UPDATED) {
+            //处理（如果需要）文档被重写的情况
+       }
+       ReplicationResponse.ShardInfo shardInfo = indexResponse.getShardInfo();
+       if (shardInfo.getTotal() != shardInfo.getSuccessful()) {
+            //处理成功分片数量少于总分片数量的情况
+       }
+       if (shardInfo.getFailed() > 0) {
+           for (ReplicationResponse.ShardInfo.Failure failure : shardInfo.getFailures()) {
+               String reason = failure.reason();//处理潜在的失败
+           }
+       }
+
+       //如果存在版本冲突，则会抛出ElasticsearchException：
+       IndexRequest request = new IndexRequest("posts", "doc", "1")
+               .source("field", "value")
+               .version(1);
+       try {
+           IndexResponse response = client.index(request);
+       } catch(ElasticsearchException e) {
+           if (e.status() == RestStatus.CONFLICT) {
+                //引发的异常表示返回了版本冲突错误
+           }
+       }
+
+       //如果opType设置为创建但是具有相同索引，类型和ID的文档已存在，则也会发生同样的情况：
+       request = new IndexRequest("posts", "doc", "1")
+               .source("field", "value")
+               .opType(DocWriteRequest.OpType.CREATE);
+       try {
+           IndexResponse response = client.index(request);
+       } catch(ElasticsearchException e) {
+           if (e.status() == RestStatus.CONFLICT) {
+                //引发的异常表示返回了版本冲突错误
+           }
+       }
+   }
 }
 
 

@@ -19,6 +19,15 @@
             <version>6.2.3</version>
         </dependency>
     </dependencies>
+    <repositories>
+        <repository>
+            <id>elastic-lucene-snapshots</id>
+            <name>Elastic Lucene Snapshots</name>
+            <url>http://s3.amazonaws.com/download.elasticsearch.org/lucenesnapshots/00142c9</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+    </repositories>
     <build>
         <plugins>
             <plugin>

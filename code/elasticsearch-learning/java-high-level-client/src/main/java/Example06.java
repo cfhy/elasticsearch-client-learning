@@ -1,112 +1,124 @@
 import org.apache.http.HttpHost;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.get.GetRequest;
+import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.sniff.ElasticsearchHostsSniffer;
-import org.elasticsearch.client.sniff.HostsSniffer;
-import org.elasticsearch.client.sniff.SniffOnFailureListener;
-import org.elasticsearch.client.sniff.Sniffer;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.Strings;
+import org.elasticsearch.index.VersionType;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.fetch.subphase.FetchSourceContext;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 
 /**
- * @description:sniffer
+ * @description:Get API
  * @author: yyb
- * @create: 2018/4/3.
+ * @create: 2018/4/10.
  */
 public class Example06 {
+    public static void main(String[]args) throws IOException {
+        RestHighLevelClient client = new RestHighLevelClient(
+                RestClient.builder(
+                        new HttpHost("localhost", 9200, "http"),
+                        new HttpHost("localhost", 9201, "http")));
 
-    /**
-     * 方式一：创建RestClient实例后直接关联Sniffer
-     * @throws IOException
-     */
-    public static void func1() throws IOException {
-        RestClient restClient = RestClient.builder(
-                new HttpHost("localhost", 9200, "http"))
-                .build();
-        Sniffer sniffer = Sniffer.builder(restClient).build();
+        GetRequest getRequest = new GetRequest(
+                "posts",//索引
+                "doc",//类型
+                "1");//文档ID
 
-        sniffer.close();
-        restClient.close();
-    }
-
-    /**
-     * 修改默认的间隔时间
-     * @throws IOException
-     */
-    public static void func2() throws IOException {
-        RestClient restClient = RestClient.builder(
-                new HttpHost("localhost", 9200, "http"))
-                .build();
-        Sniffer sniffer = Sniffer.builder(restClient)
-                .setSniffIntervalMillis(60000).build();
-    }
-
-    /**
-     * 修改默认的间隔时间
-     * @throws IOException
-     */
-    public static void func3() throws IOException {
-        SniffOnFailureListener sniffOnFailureListener = new SniffOnFailureListener();
-        RestClient restClient = RestClient.builder(new HttpHost("localhost", 9200))
-                //为RestClient实例设置失败监听器
-                .setFailureListener(sniffOnFailureListener)
-                .build();
-        //当嗅探到失败时，不仅节点会在每次故障后得到更新，
-        // 而且比平时更快地（默认是在失败后的一分钟内）再安排一轮嗅探，
-        // 假设一切回归正常，我们希望尽快检测到它。
-        // 可以在sniffer创建时通过setSniffAfterFailureDelayMillis方法对间隔时间进行定制。
-        // 注意，这最后一个配置参数在嗅探失败时没有效果，
-        // 以防在嗅探失败时不启用，就像上面解释的那样。
-        Sniffer sniffer = Sniffer.builder(restClient)
-                .setSniffAfterFailureDelayMillis(30000)
-                .build();
-        //为失败监听器设置Sniffer实例
-        sniffOnFailureListener.setSniffer(sniffer);
-    }
-
-    /**
-     * 使用https
-     */
-    public static void func4(){
-        RestClient restClient = RestClient.builder(
-                new HttpHost("localhost", 9200, "http"))
-                .build();
-        HostsSniffer hostsSniffer = new ElasticsearchHostsSniffer(
-                restClient,
-                ElasticsearchHostsSniffer.DEFAULT_SNIFF_REQUEST_TIMEOUT,
-                ElasticsearchHostsSniffer.Scheme.HTTPS);
-        Sniffer sniffer = Sniffer.builder(restClient)
-                .setHostsSniffer(hostsSniffer).build();
-    }
-
-    /**
-     * 自定义sniffer 的timeout
-     */
-    public static void func5(){
-        RestClient restClient = RestClient.builder(
-                new HttpHost("localhost", 9200, "http"))
-                .build();
-        HostsSniffer hostsSniffer = new ElasticsearchHostsSniffer(
-                restClient,
-                TimeUnit.SECONDS.toMillis(5),
-                ElasticsearchHostsSniffer.Scheme.HTTP);
-        Sniffer sniffer = Sniffer.builder(restClient)
-                .setHostsSniffer(hostsSniffer).build();
-    }
+        //===============================可选参数start====================================
+        //禁用_source检索，默认为启用
+        getRequest.fetchSourceContext(new FetchSourceContext(false));
 
 
-    public static void  func6(){
-        RestClient restClient = RestClient.builder(
-                new HttpHost("localhost", 9200, "http"))
-                .build();
-        HostsSniffer hostsSniffer = new HostsSniffer() {
+        //为特定字段配置_source_include
+        String[] includes = new String[]{"message", "*Date"};
+        String[] excludes = Strings.EMPTY_ARRAY;
+        FetchSourceContext fetchSourceContext = new FetchSourceContext(true, includes, excludes);
+        getRequest.fetchSourceContext(fetchSourceContext);
+
+        //为指定字段配置_source_exclude
+        String[] includes1 = Strings.EMPTY_ARRAY;
+        String[] excludes1 = new String[]{"message"};
+        FetchSourceContext fetchSourceContext1 = new FetchSourceContext(true, includes, excludes);
+        getRequest.fetchSourceContext(fetchSourceContext);
+
+        //配置指定stored_fields的检索（要求字段在映射中单独存储）
+        getRequest.storedFields("message");
+        GetResponse getResponse = client.get(getRequest);
+        //检索message 存储字段（要求将字段分开存储在映射中）
+        String message = getResponse.getField("message").getValue();
+
+        getRequest.routing("routing");//设置routing值
+        getRequest.parent("parent");//设置parent值
+        getRequest.preference("preference");//设置preference值
+        getRequest.realtime(false);//设置realtime为false，默认是true
+        getRequest.refresh(true);//在检索文档之前执行刷新（默认为false）
+        getRequest.version(2);//设置版本
+        getRequest.versionType(VersionType.EXTERNAL);//设置版本类型
+        //===============================可选参数end====================================
+
+        //同步执行
+        GetResponse getResponse1 = client.get(getRequest);
+
+
+        //异步执行
+        //GetResponse 的典型监听器如下所示：
+        //异步方法不会阻塞并立即返回。
+        ActionListener<GetResponse> listener = new ActionListener<GetResponse>() {
             @Override
-            public List<HttpHost> sniffHosts() throws IOException {
-                return null;//从外部获取主机
+            public void onResponse(GetResponse getResponse) {
+                //执行成功时调用。 Response以参数方式提供
+            }
+
+            @Override
+            public void onFailure(Exception e) {
+                //在失败的情况下调用。 引发的异常以参数方式提供
             }
         };
-        Sniffer sniffer = Sniffer.builder(restClient)
-                .setHostsSniffer(hostsSniffer).build();
+        //异步执行获取索引请求需要将GetRequest 实例和ActionListener实例传递给异步方法：
+        client.getAsync(getRequest, listener);
+
+
+        //Get Response
+        //返回的GetResponse允许检索请求的文档及其元数据和最终存储的字段。
+        String index = getResponse.getIndex();
+        String type = getResponse.getType();
+        String id = getResponse.getId();
+        if (getResponse.isExists()) {
+            long version = getResponse.getVersion();
+            String sourceAsString = getResponse.getSourceAsString();//检索文档(String形式)
+            Map<String, Object> sourceAsMap = getResponse.getSourceAsMap();//检索文档(Map<String, Object>形式)
+            byte[] sourceAsBytes = getResponse.getSourceAsBytes();//检索文档（byte[]形式）
+        } else {
+           /* 处理找不到文档的情况。 请注意，尽管返回404状态码，
+            但返回的是有效的GetResponse，而不是抛出的异常。
+            此类Response不包含任何源文档，并且其isExists方法返回false。*/
+        }
+
+
+        //当针对不存在的索引执行获取请求时，响应404状态码，将引发ElasticsearchException，需要按如下方式处理：
+        GetRequest request = new GetRequest("does_not_exist", "doc", "1");
+        try {
+            GetResponse getResponse2 = client.get(request);
+        } catch (ElasticsearchException e) {
+            if (e.status() == RestStatus.NOT_FOUND) {
+                //处理因为索引不存在而抛出的异常情况
+            }
+        }
+
+        //如果请求了特定的文档版本，并且现有文档具有不同的版本号，则会引发版本冲突：
+        try {
+            GetRequest request1 = new GetRequest("posts", "doc", "1").version(2);
+            GetResponse getResponse3 = client.get(request);
+        } catch (ElasticsearchException exception) {
+            if (exception.status() == RestStatus.CONFLICT) {
+                //引发的异常表示返回了版本冲突错误
+            }
+        }
     }
 }
