@@ -4,6 +4,7 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.FieldType;
 import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -12,9 +13,7 @@ import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
 import org.wltea.analyzer.lucene.IKAnalyzer;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Paths;
 
 /**
@@ -68,7 +67,7 @@ public class Indexer {
             //获取文档，文档里再设置每个字段
             Document doc = new Document();
             //把设置好的索引加到Document里，以便在确定被索引文档
-            doc.add(new TextField("contents", new FileReader(file)));
+            doc.add(new TextField("contents", this.getText(file),Field.Store.YES));
             //Field.Store.YES：把文件名存索引文件里，为NO就说明不需要加到索引文件里去
             doc.add(new TextField("fileName", file.getName(), Field.Store.YES));
             //把完整路径存在索引文件里
@@ -79,5 +78,18 @@ public class Indexer {
         //返回索引了多少个文件
         return writer.numDocs();
 
+    }
+
+    private String getText (File file) throws IOException {
+        String content="";
+        Reader fr = new FileReader(file);
+        char[] buf = new  char[1024];
+        int num = 0;
+        while((num=fr.read(buf))!=-1)
+        {
+            content+=new String(buf,0,num);
+        }
+        fr.close();
+        return content;
     }
 }
