@@ -6,9 +6,11 @@
 
     <groupId>com.yyb</groupId>
     <artifactId>elasticsearch-learning</artifactId>
+    <packaging>pom</packaging>
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>java-low-level-client</module>
         <module>java-high-level-client</module>
+        <module>java-lucene-demo</module>
     </modules>
 </project>
