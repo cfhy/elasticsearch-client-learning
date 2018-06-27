@@ -35,7 +35,7 @@ public class Indexer {
     public Indexer(String indexDir) throws IOException {
         //得到索引所在目录的路径
         Directory directory = FSDirectory.open(new File(indexDir));
-        // 标准分词器
+        // 中文分词器
         Analyzer analyzer = new IKAnalyzer();
         //保存用于创建IndexWriter的所有配置。
         IndexWriterConfig iwConfig = new IndexWriterConfig(Version.LUCENE_45, analyzer);
@@ -77,7 +77,6 @@ public class Indexer {
         }
         //返回索引了多少个文件
         return writer.numDocs();
-
     }
 
     private String getText (File file) throws IOException {

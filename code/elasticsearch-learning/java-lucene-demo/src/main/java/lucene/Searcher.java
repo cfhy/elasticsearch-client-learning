@@ -1,18 +1,14 @@
 package lucene;
 
 import java.io.File;
-import java.nio.file.Paths;
 
 import org.apache.lucene.analysis.Analyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.QueryParser;
-import org.apache.lucene.search.IndexSearcher;
-import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
-import org.apache.lucene.search.TopDocs;
+import org.apache.lucene.search.*;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.util.Version;
@@ -23,8 +19,13 @@ import org.wltea.analyzer.lucene.IKAnalyzer;
  */
 public class Searcher {
 
+    /**
+     * 单个查询
+     * @param indexDir
+     * @param q
+     * @throws Exception
+     */
     public static void search(String indexDir, String q) throws Exception {
-
         // 得到读取索引文件的路径
         Directory dir = FSDirectory.open(new File(indexDir));
         // 通过dir得到的路径下的所有的文件
@@ -65,4 +66,32 @@ public class Searcher {
         reader.close();
     }
 
+    /**
+     * 多条件查询
+     *
+     * @param indexDir
+     * @param content
+     * @param fileName
+     * @throws Exception
+     */
+    public static void searchBooleanQuery(String indexDir, String content, String fileName) throws Exception {
+        Directory directory = FSDirectory.open(new File(indexDir));
+        IndexReader indexReader = DirectoryReader.open(directory);
+        IndexSearcher indexSearcher = new IndexSearcher(indexReader);
+        Analyzer analyzer = new IKAnalyzer();
+        // 多条件必备神器,实际使用中一般是多目标搜索（根据 内容、文件名等等），
+        BooleanQuery bQuery = new BooleanQuery();
+        QueryParser parser = new QueryParser(Version.LUCENE_45, "contents", analyzer);
+        Query query = parser.parse(content);
+        bQuery.add(query, BooleanClause.Occur.MUST);
+        bQuery.add(new TermQuery(new Term("fileName", fileName)), BooleanClause.Occur.MUST);
+
+        TopDocs topDocs = indexSearcher.search(bQuery, 10);
+
+        for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
+            Document document = indexSearcher.doc(scoreDoc.doc);
+            System.out.println(document.get("fullPath"));
+        }
+        indexReader.close();
+    }
 }

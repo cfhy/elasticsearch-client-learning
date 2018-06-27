@@ -21,8 +21,10 @@ public class TestSearch {
         String indexDir=relativelyPath+"/java-lucene-demo/target/classes/index" ;
         //我们要搜索的内容
         String q = "开放源代码程序库";
+        String fileName ="中文";
         try {
            Searcher.search(indexDir, q);
+           Searcher.searchBooleanQuery(indexDir, q,fileName);
         } catch (Exception e) {
             // TODO Auto-generated catch block
             e.printStackTrace();
