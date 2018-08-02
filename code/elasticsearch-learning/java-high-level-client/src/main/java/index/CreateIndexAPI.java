@@ -1,3 +1,5 @@
+package index;
+
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.admin.indices.alias.Alias;
@@ -14,7 +16,7 @@ import java.io.IOException;
 /**
  * Create Index API
  */
-public class Example01 {
+public class CreateIndexAPI {
     public static void main(String []args) throws IOException {
         RestHighLevelClient client = new RestHighLevelClient(
                 RestClient.builder(

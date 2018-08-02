@@ -1,3 +1,5 @@
+package index;
+
 import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -13,7 +15,7 @@ import java.io.IOException;
 /**
  *  Delete Index API
  */
-public class Example02 {
+public class DeleteIndexAPI {
 
     public static void main(String args[]) throws IOException {
         RestHighLevelClient client = new RestHighLevelClient(

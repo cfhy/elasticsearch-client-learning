@@ -1,3 +1,5 @@
+package docment;
+
 import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.ActionListener;
@@ -35,7 +37,7 @@ import static java.util.Collections.singletonMap;
  * @author: yyb
  * @create: 2018/4/10.
  */
-public class Example08 {
+public class UpdateAPI {
     public static void main(String[]args) throws IOException {
         RestHighLevelClient client = new RestHighLevelClient(
                 RestClient.builder(

@@ -1,3 +1,5 @@
+package index;
+
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.admin.indices.open.OpenIndexRequest;
 import org.elasticsearch.action.admin.indices.open.OpenIndexResponse;
@@ -11,7 +13,7 @@ import java.io.IOException;
 /**
  * Open Index API
  */
-public class Example03 {
+public class OpenIndexAPI {
     public static void example() throws IOException {
         RestHighLevelClient client = new RestHighLevelClient(
                 RestClient.builder(

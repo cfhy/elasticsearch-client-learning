@@ -1,3 +1,5 @@
+package index;
+
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequest;
 import org.elasticsearch.action.admin.indices.close.CloseIndexResponse;
@@ -11,7 +13,7 @@ import java.io.IOException;
 /**
  * Close Index API
  */
-public class Example04 {
+public class CloseIndexAPI {
     public static void main(String args[]) throws IOException {
         RestHighLevelClient client = new RestHighLevelClient(
                 RestClient.builder(
